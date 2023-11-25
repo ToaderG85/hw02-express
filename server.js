@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 
 dotenv.config();
+require("./middlewares/passportConfig");
 
 const PORT = process.env.PORT || 3000;
 const URL_DB = process.env.DB_URL;
