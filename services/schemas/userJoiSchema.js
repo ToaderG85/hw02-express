@@ -6,6 +6,8 @@ const userJoiSchema = Joi.object({
  subscription: Joi.string().valid("starter", "pro", "business").default("starter"),
  token: Joi.string(),
  avatarUrl:Joi.string(),
+ verify:Joi.boolean(),
+ verificationToken:Joi.string(),
 });
 
 const checkError = (schema, { body }, res, next) => {

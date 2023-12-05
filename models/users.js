@@ -1,4 +1,4 @@
-const { getUser, updateUser, register } = require("../services/authIndex");
+const { getUser, getUserByEmail, updateUser, sendEmail, register,verifyUserEmail } = require("../services/authIndex");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
@@ -6,6 +6,8 @@ const Jimp = require('jimp');
 
 const fs = require("fs");
 const path = require("path");
+const secret = process.env.SECRET;
+
 
 const currentUser = async ({ user: { email, subscription } }, res, next) => {
  try {
@@ -23,16 +25,7 @@ const currentUser = async ({ user: { email, subscription } }, res, next) => {
 
 const signup = async ({ body: { email, password } }, res, next) => {
  try {
-  const user = await getUser({ email });
-  if (user) {
-   return res.status(409).json({
-    status: "Conflict",
-    code: 409,
-    message: "Email in use",
-   });
-  }
-
-  const results = await register({ email, password });
+   const results = await register({ email, password });
 
   return res.status(201).json({
    status: "Created",
@@ -44,33 +37,32 @@ const signup = async ({ body: { email, password } }, res, next) => {
  }
 };
 
-const login = async ({ body: { email, password } }, res, next) => {
- try {
-  const user = await getUser({ email });
+const login = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    const result = await getUser({
+      email,
+      password,
+    });
 
-  if (!user || !user.comparePassword(password)) {
-   return res.status(400).json({
-    status: "Unauthorized",
-    code: 401,
-    message: "Email or password is wrong",
-   });
+    const payload = { email: result.email };
+
+    const token = jwt.sign(payload, secret, { expiresIn: "1h" });
+
+    res.status(201).json({
+      status: "succes",
+      code: 201,
+      data: {
+        email: result.email,
+        token,
+      },
+    });
+  } catch (error) {
+    res.status(404).json({
+      status: 404,
+      error: error.message,
+    });
   }
-
-  const token = jwt.sign({ id: user._id }, process.env.SECRET);
-  await updateUser(user._id, { token });
-
-  return res.json({
-   status: "Success",
-   code: 200,
-   data: {
-    token,
-    email: user.email,
-    subscription: user.subscription,
-   },
-  });
- } catch (error) {
-  next(error);
- }
 };
 
 const logout = async ({ user: { id } }, res, next) => {
@@ -122,7 +114,7 @@ const updateAvatar = async (req, res, next) => {
     req.user.avatarUrl = `/avatars/${uniqFilename}`;
 
     await req.user.save(); 
-    
+
     res.status(200).json({ avatarUrl: req.user.avatarUrl }); 
   } catch (error) {
     res.status(404).json({ error: error.message }); 
@@ -130,10 +122,59 @@ const updateAvatar = async (req, res, next) => {
   }
 };
 
+const verifyEmail = async (req,res, next)=>{
+  try {
+    const { verificationToken } = req.params;
+
+    await verifyUserEmail(verificationToken)
+
+    res.status(200).json({message: "Email verified succesfully", code: 200});
+
+  } catch (error) {
+    res.status(404).json({
+      status: "error",
+      message: error.message,
+    })
+  }
+};
+
+const resendVerifyEmail = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+     return res.status(400).json({ message: "Missing required field: email" });
+    }
+    const user = await getUserByEmail({ email });
+  
+    if (!user) {
+     return res.status(404).json({ message: "Email not found" });
+    }
+    if (user.verify) {
+     return res.status(400).json({ message: "Verification has already been passed" });
+    }
+    const verificationToken = nanoid();
+    const verifyEmail = {
+     to: email,
+     from: "gtdinamo@gmail.com",
+     subject: "Verify email!",
+     text: `Your verification code is ${verificationToken} / http://localhost:5000/api/users/verify/${verificationToken}`,
+    };
+  
+    await sendEmail(verifyEmail);
+    res.json({
+     message: "Verification email sent",
+    });
+   } catch (error) {
+    next(error);
+   }
+}
+
 module.exports = {
  currentUser,
  signup,
  login,
  logout,
- updateAvatar
+ updateAvatar,
+ verifyEmail,
+ resendVerifyEmail
 };
