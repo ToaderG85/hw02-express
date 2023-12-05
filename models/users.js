@@ -6,6 +6,7 @@ const Jimp = require('jimp');
 
 const fs = require("fs");
 const path = require("path");
+const secret = process.env.SECRET;
 
 
 const currentUser = async ({ user: { email, subscription } }, res, next) => {
@@ -24,16 +25,7 @@ const currentUser = async ({ user: { email, subscription } }, res, next) => {
 
 const signup = async ({ body: { email, password } }, res, next) => {
  try {
-  const user = await getUser({ email });
-  if (user) {
-   return res.status(409).json({
-    status: "Conflict",
-    code: 409,
-    message: "Email in use",
-   });
-  }
-
-  const results = await register({ email, password });
+   const results = await register({ email, password });
 
   return res.status(201).json({
    status: "Created",
@@ -45,37 +37,32 @@ const signup = async ({ body: { email, password } }, res, next) => {
  }
 };
 
-const login = async ({ body: { email, password } }, res, next) => {
- try {
-  const user = await getUser({ email });
+const login = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    const result = await getUser({
+      email,
+      password,
+    });
 
-  if (!user || !user.comparePassword(password)) {
-   return res.status(400).json({
-    status: "Unauthorized",
-    code: 401,
-    message: "Email or password is wrong",
-   });
+    const payload = { email: result.email };
 
-   if (!user.verify) {
-    throw new Error("Trebuie sa iti verifici contul de email!");
+    const token = jwt.sign(payload, secret, { expiresIn: "1h" });
+
+    res.status(201).json({
+      status: "succes",
+      code: 201,
+      data: {
+        email: result.email,
+        token,
+      },
+    });
+  } catch (error) {
+    res.status(404).json({
+      status: 404,
+      error: error.message,
+    });
   }
-  }
-
-  const token = jwt.sign({ id: user._id }, process.env.SECRET);
-  await updateUser(user._id, { token });
-
-  return res.json({
-   status: "Success",
-   code: 200,
-   data: {
-    token,
-    email: user.email,
-    subscription: user.subscription,
-   },
-  });
- } catch (error) {
-  next(error);
- }
 };
 
 const logout = async ({ user: { id } }, res, next) => {

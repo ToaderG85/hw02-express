@@ -35,8 +35,22 @@ const register = async ({ email, password, subscription }) => {
   }
 };
 
-const getUser = async ({ email }) => {
- return User.findOne({ email }).select("+password +subscription");
+const getUser = async ({ email, password }) => {
+ try {
+  const user = await User.findOne({ email });
+  if (!user || !user.comparePassword(password)) {
+    throw new Error("Email sau parola gresita!");
+  }
+
+  if (!user.verify) {
+    throw new Error("Trebuie sa iti verifici contul de email!");
+  }
+  return user;
+
+  
+ } catch (error) {
+  throw error;
+ }
 };
 
 const getUserById = (userId) => User.findById(userId);
