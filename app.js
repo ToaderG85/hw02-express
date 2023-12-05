@@ -1,7 +1,8 @@
-const express = require('express')
-const logger = require('morgan')
-const cors = require('cors')
+const express = require('express');
+const logger = require('morgan');
+const cors = require('cors');
 const path = require('path');
+const sgMail = require('@sendgrid/mail');
 
 
 const contactsRouter = require('./routes/api/contactsApi');
@@ -17,6 +18,8 @@ app.use(cors());
 app.use(express.json());
 
 app.use(express.static(path.join(__dirname, "public")));
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 app.use('/api/contacts', contactsRouter);
 app.use("/api/users", usersRouter);
