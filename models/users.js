@@ -2,6 +2,11 @@ const { getUser, updateUser, register } = require("../services/authIndex");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
+const Jimp = require('jimp');
+
+const fs = require("fs");
+const path = require("path");
+
 const currentUser = async ({ user: { email, subscription } }, res, next) => {
  try {
   return res.json({
@@ -67,6 +72,7 @@ const login = async ({ body: { email, password } }, res, next) => {
   next(error);
  }
 };
+
 const logout = async ({ user: { id } }, res, next) => {
  try {
   await updateUser(id, { token: null });
@@ -80,9 +86,54 @@ const logout = async ({ user: { id } }, res, next) => {
  }
 };
 
+
+const updateAvatar = async (req, res, next) => {
+
+  try {
+    if (!req.file) {
+      return res.status(404).json({ error: "Nu exista fisier de incarcat!" });
+    }
+
+    const uniqFilename = `${req.user._id}-${Date.now()}${path.extname(
+      req.file.originalname
+    )}`;
+
+    const destinationPath = path.join(
+      __dirname,
+      `../public/avatars/${uniqFilename}`
+    ); 
+
+   
+    await Jimp.read(req.file.path)
+      .then((image) => {
+        return image
+          .resize(350, 350)
+          .quality(60)
+          .greyscale()
+          .writeAsync(destinationPath);
+      })
+      .then(() => {
+        fs.unlinkSync(req.file.path);
+      })
+      .catch((error) => {
+        throw error; 
+      });
+
+    req.user.avatarUrl = `/avatars/${uniqFilename}`;
+
+    await req.user.save(); 
+    
+    res.status(200).json({ avatarUrl: req.user.avatarUrl }); 
+  } catch (error) {
+    res.status(404).json({ error: error.message }); 
+    next(error);
+  }
+};
+
 module.exports = {
  currentUser,
  signup,
  login,
  logout,
+ updateAvatar
 };
