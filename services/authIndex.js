@@ -2,6 +2,14 @@ const User = require("./schemas/userSchema");
 const sgMail = require("@sendgrid/mail");
 const {nanoid} = require("nanoid");
 
+const sendEmail = async (emailData) => {
+  try {
+   await sgMail.send(emailData);
+  } catch (error) {
+   throw new Error("Error sending email");
+  }
+ };
+
 const register = async ({ email, password, subscription }) => {
   try {
     const existingUser = await User.findOne({email});
@@ -24,7 +32,7 @@ const register = async ({ email, password, subscription }) => {
     .catch((err) => {
       console.log(err);
       throw new Error("Eroare la trimitere");
-    });;
+    });
 
     const newUser = new User({ email, password, subscription, verificationToken: uniqueVerificationCode });
     newUser.hashPassword(password);
@@ -39,21 +47,26 @@ const getUser = async ({ email, password }) => {
  try {
   const user = await User.findOne({ email });
   if (!user || !user.comparePassword(password)) {
-    throw new Error("Email sau parola gresita!");
+    throw new Error("Wrong email or password!");
   }
 
   if (!user.verify) {
-    throw new Error("Trebuie sa iti verifici contul de email!");
+    throw new Error("Check your email!");
   }
+  
   return user;
 
-  
  } catch (error) {
   throw error;
  }
 };
 
 const getUserById = (userId) => User.findById(userId);
+
+const getUserByEmail = async ({ email }) => {
+  return User.findOne({ email });
+ };
+ 
 
 const updateUser = (userId, body) => User.findByIdAndUpdate(userId, body);
 
@@ -76,6 +89,8 @@ const verifyUserEmail = async (verificationToken) => {
 module.exports = {
  getUser,
  getUserById,
+ getUserByEmail,
+ sendEmail,
  updateUser,
  register,
  verifyUserEmail

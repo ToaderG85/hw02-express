@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../../middlewares/auth");
 const { validUserJoiSchema } = require("../../services/schemas/userJoiSchema");
-const { currentUser, signup, login, logout, updateAvatar, verifyEmail } = require("../../models/users");
+const { currentUser, signup, login, logout, updateAvatar, verifyEmail, resendVerifyEmail } = require("../../models/users");
 
 const multer = require("multer");
 const path = require("path");
@@ -40,5 +40,7 @@ router.get("/current", auth, currentUser);
 router.patch("/avatars", auth, upload.single("avatar"),updateAvatar);
 
 router.get("/verify/:verificationToken", verifyEmail)
+
+router.post("/verify", resendVerifyEmail);
 
 module.exports = router;

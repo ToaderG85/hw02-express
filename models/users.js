@@ -1,4 +1,4 @@
-const { getUser, updateUser, register,verifyUserEmail } = require("../services/authIndex");
+const { getUser, getUserByEmail, updateUser, sendEmail, register,verifyUserEmail } = require("../services/authIndex");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
@@ -136,6 +136,37 @@ const verifyEmail = async (req,res, next)=>{
       message: error.message,
     })
   }
+};
+
+const resendVerifyEmail = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+     return res.status(400).json({ message: "Missing required field: email" });
+    }
+    const user = await getUserByEmail({ email });
+  
+    if (!user) {
+     return res.status(404).json({ message: "Email not found" });
+    }
+    if (user.verify) {
+     return res.status(400).json({ message: "Verification has already been passed" });
+    }
+    const verificationToken = nanoid();
+    const verifyEmail = {
+     to: email,
+     from: "gtdinamo@gmail.com",
+     subject: "Verify email!",
+     text: `Your verification code is ${verificationToken} / http://localhost:5000/api/users/verify/${verificationToken}`,
+    };
+  
+    await sendEmail(verifyEmail);
+    res.json({
+     message: "Verification email sent",
+    });
+   } catch (error) {
+    next(error);
+   }
 }
 
 module.exports = {
@@ -144,5 +175,6 @@ module.exports = {
  login,
  logout,
  updateAvatar,
- verifyEmail
+ verifyEmail,
+ resendVerifyEmail
 };
